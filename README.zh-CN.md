@@ -23,7 +23,7 @@ Delos 这个名字来自希腊神话中的提洛岛：它是一个承载诞生�
 
 **Delos is where they are born, not who they must become.**
 
-仓库附带的示例 persona 叫 **Arti**。她只是默认示例，不是产品身份；你可以完全替换她，而不需要改 runtime 架构。
+仓库附带的示例 persona 叫 **Arti**。她只是默认示例，不是产品身份；你可以完全替换她，而不需要改 runtime 架构。 <!-- scan-allow-persona -->
 
 ## 5 分钟跑起来
 
