@@ -115,10 +115,11 @@ See [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md).
 | [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md) | daemon and local application layout |
 | [Surface API](docs/SURFACE-API.md) | supported local integration API |
 | [Other surfaces](docs/SURFACES-BEYOND-THE-BROWSER.md) | desktop, Telegram, and delegated providers |
+| [Licensing notes](docs/LICENSING.md) | plain-language licensing boundary |
 
 ## Licence
 
-**PolyForm Noncommercial License 1.0.0** — see [LICENSE](LICENSE) for the official text and [LICENSE-NOTES.md](LICENSE-NOTES.md) for a plain-language explanation. The project is source-available for noncommercial use; commercial use requires separate permission.
+**PolyForm Noncommercial License 1.0.0** — see [LICENSE.md](LICENSE.md) for the official text and [Licensing notes](docs/LICENSING.md) for a plain-language explanation. The project is source-available for noncommercial use; commercial use requires separate permission.
 
 The licensor and maintainer is **Gwendolen** (`@Gwendolenmave` on GitHub).
 
