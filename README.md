@@ -23,7 +23,7 @@ The name comes from the island of Delos in Greek myth: a place that hosted a bir
 
 **Delos is where they are born, not who they must become.**
 
-The repository ships with an example persona named **Arti**. She is a default, not the product identity. You can replace her completely without renaming runtime code or migrating the database.
+The repository ships with an example persona named **Arti**. She is a default, not the product identity. You can replace her completely without renaming runtime code or migrating the database. <!-- scan-allow-persona -->
 
 ## Run it in five minutes
 
