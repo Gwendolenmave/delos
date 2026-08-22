@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "arti",
+  "displayName": "Arti",
+  "description": "The default guest. Generic on purpose: rename her, rewrite her, or replace every block with your own - Delos should not resist.",
+  "language": "en",
+  "author": "the Delos project",
+  "base": [
+    "base/identity.md",
+    "base/relationship.md",
+    "base/response-style.md"
+  ],
+  "variants": [
+    {
+      "id": "intimacy",
+      "path": "variants/intimacy.md",
+      "displayName": "Closeness",
+      "policy": "manual",
+      "priority": 20,
+      "description": "Warmer, closer register. Off until you turn it on for a session; off again the moment you say so."
+    },
+    {
+      "id": "sensitive-content",
+      "path": "variants/sensitive-content.md",
+      "displayName": "Difficult ground",
+      "policy": "contextual",
+      "priority": 10,
+      "description": "Keeps the conversation steady, direct and context-aware on hard topics. Activates by the visible rules in rules/contextual-activation.json, or by hand."
+    }
+  ],
+  "overlays": [],
+  "rules": "rules/contextual-activation.json"
+}

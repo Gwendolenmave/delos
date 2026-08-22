@@ -1,0 +1,35 @@
+{
+  "name": "delos",
+  "version": "0.2.0-dev.0",
+  "private": true,
+  "description": "Delos: a local-first, platform-neutral personal assistant runtime.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('build',{recursive:true,force:true})\"",
+    "build": "npm run clean --silent && tsc -p tsconfig.json",
+    "test": "npm run build --silent && node --test build/tests/*.test.js && npm run test:scan --silent",
+    "test:scan": "python3 scripts/scan-adversarial-test.py",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "npm run build --silent && node build/surfaces/cli/main.js",
+    "app:web": "npm run build --silent && node build/surfaces/web/launch.js"
+  },
+  "peerDependencies": {
+    "@delos/mnemosyne": "^0.1.0"
+  },
+  "peerDependenciesMeta": {
+    "@delos/mnemosyne": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.8.0"
+  },
+  "bin": {
+    "delos": "build/surfaces/cli/main.js"
+  }
+}

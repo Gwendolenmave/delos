@@ -1,0 +1,52 @@
+# Desktop packaging - AUTHORED FOR THE FUTURE, NEVER YET RUN.
+#
+# This repository has no remote and no CI; the workflow exists so that the
+# first push to a public GitHub repository carries a reviewed packaging
+# pipeline rather than an improvised one. It builds unsigned candidate
+# artifacts and uploads them as workflow artifacts only: it NEVER creates a
+# release, never publishes a package, and never signs anything.
+
+name: desktop-packaging
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm test
+
+  package:
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      # The packaged app serves the repository's OWN web application; its
+      # compiled assets must exist before packaging copies them in.
+      - run: npm run build
+      - run: npm ci
+        working-directory: desktop
+      - run: npm run package
+        working-directory: desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: delos-desktop-${{ matrix.os }}-unsigned
+          path: |
+            desktop/dist/**
+          retention-days: 14

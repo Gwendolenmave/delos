@@ -1,0 +1,132 @@
+name: public-delos-staging-ci
+
+on:
+  push:
+    branches:
+      - public-sync/delos-v0.2-mnemosyne-integration-20260821
+  pull_request:
+    branches:
+      - snapshot/local-public-wave7-20260818-20260818-113602z
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: public-delos-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Public Delos staging verify
+    if: >-
+      github.event.repository.private == true &&
+      (github.event_name == 'push' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+
+    steps:
+      - name: Clear dedicated candidate checkout
+        shell: bash
+        run: rm -rf "$GITHUB_WORKSPACE/_public_delos_candidate"
+
+      - name: Checkout exact staging head only
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          path: _public_delos_candidate
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.1
+
+      - name: Confirm isolated checkout
+        shell: bash
+        working-directory: _public_delos_candidate
+        run: |
+          set -euo pipefail
+          node --version
+          npm --version
+          test "$(git rev-list --all --count)" -eq 1
+
+      - name: Install locked dependencies
+        working-directory: _public_delos_candidate
+        run: npm ci --ignore-scripts
+
+      - name: Typecheck
+        working-directory: _public_delos_candidate
+        run: npm run typecheck
+
+      # B1 introduced durable state at the real CLI process boundary. The prior
+      # exact-head run emitted 316 passing tests and then sat silent until the
+      # job timeout, leaving two child Node processes alive. Run the real child-
+      # process provider suite alone first with a hard diagnostic bound so a
+      # lifecycle leak becomes a named failure instead of another 30-minute
+      # anonymous hang. This does not replace the complete npm test gate below.
+      - name: Isolate real CLI child-process lifecycle
+        shell: bash
+        working-directory: _public_delos_candidate
+        run: |
+          set -euo pipefail
+          npm run build --silent
+          timeout --signal=TERM --kill-after=10s 120s \
+            node --test build/tests/provider-cli.e2e.test.js
+
+      - name: Test
+        shell: bash
+        working-directory: _public_delos_candidate
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 600s npm test
+
+      # Publication gate: the actual candidate tree must pass the scanner, not
+      # only its adversarial scanner tests. The checkout is deliberately a
+      # single-commit shallow history, matching the publication-shaped history
+      # that will seed the empty public repository.
+      - name: Scan publication working tree
+        shell: bash
+        working-directory: _public_delos_candidate
+        run: python3 scripts/scan.py
+
+      - name: Scan publication-shaped history
+        shell: bash
+        working-directory: _public_delos_candidate
+        run: python3 scripts/scan-history.py
+
+      - name: Record green exact-head status
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.eventName === 'pull_request'
+              ? context.payload.pull_request.head.sha
+              : context.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state: 'success',
+              context: 'public-delos-staging/verify',
+              description: 'isolated typecheck, test, tree and history gates passed',
+            });
+
+      - name: Record failed exact-head status
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.eventName === 'pull_request'
+              ? context.payload.pull_request.head.sha
+              : context.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state: 'failure',
+              context: 'public-delos-staging/verify',
+              description: 'isolated typecheck, test, tree or history gate failed',
+            });

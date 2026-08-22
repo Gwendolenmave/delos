@@ -1,0 +1,17 @@
+{
+  "name": "delos-desktop",
+  "version": "0.1.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "Desktop shell for the local Delos daemon and web application.",
+  "main": "build-desktop/desktop/src/main.js",
+  "scripts": {
+    "build": "node ../node_modules/typescript/bin/tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "package": "npm run build && node scripts/package.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.0.4",
+    "electron": "43.2.0"
+  }
+}

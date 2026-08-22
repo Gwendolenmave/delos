@@ -1,0 +1,31 @@
+{
+  "comment": "Transparent contextual activation. A variant listed here loads when the current user message contains any literal term, matched case-insensitively. No model call, no scoring: read the terms, predict the behaviour. Edit freely.",
+  "rules": [
+    {
+      "variantId": "sensitive-content",
+      "anyOf": [
+        "died",
+        "passed away",
+        "funeral",
+        "grief",
+        "grieving",
+        "diagnosis",
+        "diagnosed",
+        "terminal",
+        "hospice",
+        "hospital",
+        "miscarriage",
+        "divorce",
+        "breakup",
+        "broke up",
+        "laid off",
+        "fired",
+        "in crisis",
+        "scared",
+        "terrified",
+        "can't cope",
+        "cannot cope"
+      ]
+    }
+  ]
+}

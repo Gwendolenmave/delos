@@ -1,0 +1,31 @@
+# Credentials and local configuration — never commit
+.env
+.env.*
+!.env.example
+secrets/
+
+# Local data: conversations, memory, caches
+data/
+*.db
+*.sqlite
+*.sqlite3
+logs/
+
+# Build output and dependencies
+node_modules/
+dist/
+build/
+build-desktop/
+coverage/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+tmp/
+.cache/
+
+# Your local runtime configuration (the example is committed, this is not)
+delos.config.json
