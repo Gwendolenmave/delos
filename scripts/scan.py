@@ -3,8 +3,8 @@
 
 The scanner core remains intentionally strict and reusable. This wrapper owns
 only the repository-level publication policy that changes when the public
-surface changes: current attribution documents and the single document allowed
-to contain Chinese prose.
+surface changes: current attribution documents and the two bilingual README
+surfaces allowed to contain Chinese prose.
 
 Secret, credential, path, host, symlink, and forbidden-path checks remain in
 scan-core.py and are not weakened here.
@@ -32,11 +32,13 @@ core.ATTRIBUTION_PROSE = frozenset(core.ATTRIBUTION_PROSE) | frozenset({
     "docs/LICENSING.md",
 })
 
-# Chinese prose is an intentional public product surface only in the Chinese
-# README. The core still sees every ASCII fragment of those lines, so secrets,
-# emails, home paths, private hosts, and owner-name namespace forms continue to
-# be scanned normally. Every other tracked file keeps the core CJK prohibition.
-_ALLOWED_CJK_PROSE = frozenset({"README.zh-CN.md"})
+# Chinese prose is intentional only on the two README language surfaces: the
+# English README carries the visible Chinese-language switch, while the Chinese
+# README contains the translated prose. The core still sees every ASCII
+# fragment of those lines, so secrets, emails, home paths, private hosts, and
+# owner-name namespace forms continue to be scanned normally. Every other
+# tracked file keeps the core CJK prohibition.
+_ALLOWED_CJK_PROSE = frozenset({"README.md", "README.zh-CN.md"})
 _core_read_lines = core.read_lines
 
 
