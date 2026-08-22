@@ -1,17 +1,31 @@
 # Delos
 
-A local-first, self-hosted personal assistant runtime that runs on your own machine.
+[简体中文](README.zh-CN.md)
 
-Delos keeps the assistant runtime, provider choice, local transcripts, persona files, and optional long-term memory under the host's control. It does not operate a hosted service, account, subscription, or telemetry backend.
+**A personal AI runtime that runs on your own machine — so you can change the model, provider, interface, or memory system without rebuilding the assistant from scratch.**
 
-Delos is named after the island where, in myth, Leto bore Artemis and <!-- scan-allow-persona -->
-Apollo. The name describes a place that hosts an identity rather than defining it:
+Delos is not trying to be one more chatbot. It is trying to solve a more annoying long-term problem: personal AI systems tend to glue identity, model access, conversation state, memory, and UI together. Change one piece and everything else becomes migration work.
+
+Delos separates those pieces behind stable boundaries:
+
+| The problem | The Delos piece | What it buys you |
+| --- | --- | --- |
+| Changing models feels like changing assistants | **Provider profiles** | Swap OpenAI, Anthropic, compatible APIs, local models, or delegated providers without rewriting the persona |
+| Persona is buried in application code | **Plain-file persona + persona packs** | Identity and response style stay readable, editable, and portable |
+| CLI, web, and messaging each grow their own state | **One runtime, multiple surfaces** | Different interfaces share the same turn, transcript, and configuration boundaries |
+| Conversation continuity disappears after a restart | **Local transcripts + optional Mnemosyne** | Delos keeps local conversation continuity; Mnemosyne adds governed long-term memory when you want it |
+| API keys spread through config files | **Secret references** | Configuration points to secrets instead of storing secret values |
+| A broken installation is hard to reason about | **Backup / restore / doctor** | State can be backed up, restored, and checked for consistency |
+
+Delos operates no hosted service, account, subscription, or telemetry backend. You choose the model path, where local state lives, and whether long-term memory is enabled.
+
+The name comes from the island of Delos in Greek myth: a place that hosted a birth without defining the identity of those born there.
 
 **Delos is where they are born, not who they must become.**
 
-The bundled example persona is **Arti**. She is a default, not a requirement. Persona identity is plain content and can be renamed, rewritten, or replaced without changing the runtime architecture.
+The repository ships with an example persona named **Arti**. She is a default, not the product identity. You can replace her completely without renaming runtime code or migrating the database.
 
-## Quickstart
+## Run it in five minutes
 
 Requires **Node.js 22.22 or newer**.
 
@@ -32,43 +46,47 @@ npm run start -- --once "Hello."
 npm run start
 ```
 
-In an interactive session, `/exit` or `/quit` leaves the session and `/clear` archives the current CLI conversation and starts a fresh one. Completed interactive turns are stored locally and can resume after restart inside the same configuration/provider scope. One-shot `--once` runs remain isolated.
+In an interactive session:
 
-## Providers
+- `/exit` or `/quit` leaves the session;
+- `/clear` archives the current CLI conversation and starts a fresh one;
+- completed turns are stored locally and can resume after restart inside the same configuration/provider scope;
+- `--once` runs stay isolated from that interactive continuity.
 
-Delos can use official OpenAI and Anthropic protocols, OpenAI-compatible relays or local servers, and delegated local provider tools. Provider profiles are non-secret configuration; credentials stay behind the secret-store boundary.
+## How the pieces fit
 
-Start with:
-
-- [Providers](docs/PROVIDERS.md) for supported provider kinds and protocol behavior.
-- [Provider profiles](docs/PROVIDER-PROFILES.md) for configuration examples.
-- [Secrets](docs/SECRETS.md) for credential handling.
-
-## Optional long-term memory with Mnemosyne
-
-Long-term memory is provided by the separate public package [`@delos/mnemosyne`](https://github.com/Gwendolenmave/mnemosyne). It is optional and defaults off.
-
-Install Mnemosyne beside Delos:
-
-```bash
-npm install github:Gwendolenmave/mnemosyne
+```text
+CLI / Web / Desktop / Telegram
+              │
+              ▼
+        Delos runtime
+   ┌──────────┼──────────┐
+   ▼          ▼          ▼
+Persona    Provider   Transcript
+ files      adapter      store
+   │          │          │
+   └──────────┴──────┬───┘
+                     ▼
+             optional Mnemosyne
 ```
 
-Then enable it explicitly:
+The important part is not the diagram itself. It is that **the blocks are replaceable**. Changing provider should not migrate persona. Changing surface should not fork transcript state. Enabling Mnemosyne should not turn memory into system/persona authority.
 
-```bash
-export DELOS_MEMORY_BACKEND=mnemosyne
-export DELOS_MEMORY_DB_PATH=./local-state/mnemosyne.db
-npm run start
-```
+If you are modifying or extending Delos, treat [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md) as the normative contract.
 
-If Mnemosyne is explicitly enabled but cannot be attached, startup fails closed instead of pretending memory is active. Retrieved memory is bounded host data and never becomes system/persona authority.
+## Models and providers
 
-See [Memory integration](docs/MEMORY.md) for the full boundary.
+Delos can talk to official OpenAI and Anthropic protocols, OpenAI-compatible relays or local servers, and delegated local provider tools.
 
-## Personas
+Provider profiles describe *how to reach a model*. They do not contain credential values.
 
-The assistant's identity and response style live in plain files rather than code or database identifiers.
+- [Providers](docs/PROVIDERS.md) explains the supported provider kinds and protocol behavior.
+- [Provider profiles](docs/PROVIDER-PROFILES.md) shows configuration examples.
+- [Secrets](docs/SECRETS.md) explains how credentials are referenced and stored.
+
+## Persona: identity is content, not code
+
+The default identity is deliberately boring to inspect:
 
 ```text
 prompts/
@@ -77,50 +95,63 @@ prompts/
 └── response-style.md
 ```
 
-Persona packs add a portable manifest, variants, and contextual activation rules. See [Persona packs](docs/PERSONA-PACKS.md).
+That is the point. You should be able to read, edit, replace, and version the assistant's identity without touching runtime internals.
 
-## Surfaces
+For portable manifests, variants, and contextual activation rules, see [Persona packs](docs/PERSONA-PACKS.md).
 
-The same runtime can be reached through the CLI, browser UI, desktop shell, or Telegram surface. Local surfaces use the daemon's versioned loopback API instead of creating separate assistant implementations.
+## Long-term memory: add Mnemosyne when you need it
 
-- [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md)
-- [Surface API](docs/SURFACE-API.md)
-- [Desktop, Telegram, and delegated providers](docs/SURFACES-BEYOND-THE-BROWSER.md)
+Delos owns the runtime and local conversation continuity. Governed long-term memory is provided by the separate public project [Mnemosyne](https://github.com/Gwendolenmave/mnemosyne), and it is **off by default**.
+
+```bash
+npm install github:Gwendolenmave/mnemosyne
+
+export DELOS_MEMORY_BACKEND=mnemosyne
+export DELOS_MEMORY_DB_PATH=./local-state/mnemosyne.db
+npm run start
+```
+
+If you explicitly enable Mnemosyne and Delos cannot attach it correctly, startup fails closed rather than pretending memory is active. Retrieved memory is bounded host data; it never becomes system/persona authority.
+
+See [Memory integration](docs/MEMORY.md) for the complete boundary.
+
+## Many interfaces, one Delos
+
+CLI, browser UI, desktop shell, and Telegram are ways into the same runtime, not four separate assistants.
+
+- [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md) explains the daemon and local app layout.
+- [Surface API](docs/SURFACE-API.md) defines the stable local integration API.
+- [Desktop, Telegram, and delegated providers](docs/SURFACES-BEYOND-THE-BROWSER.md) covers the other surfaces and delegated providers.
 
 ## Privacy and local ownership
 
-Delos itself sends data only where the configured model/provider path requires it. A remote model provider receives the prompt and selected conversation/context needed for a turn under that provider's own privacy, retention, and billing terms; pointing Delos at a local model keeps model traffic on the host machine.
+Delos does not send data to a “Delos cloud.” Network traffic depends on the model path you configure.
 
-Credentials do not belong in Delos JSON configuration. Runtime transcripts, local state, persona data, and an optional Mnemosyne database stay under the host's storage boundary.
+A remote provider receives the prompt and selected conversation/context needed for a turn under that provider's own privacy, retention, and billing terms. Pointing Delos at a local model keeps model traffic on the host machine.
+
+Credentials do not belong in Delos JSON configuration. Runtime transcripts, local state, persona data, and an optional Mnemosyne database stay inside the host's storage boundary.
 
 Backup, restore, and health tooling are described in [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md).
 
-## Architecture
-
-Delos is deliberately low-coupling: providers, models, identities, interfaces, memory stores, and tools are replaceable implementations around stable runtime contracts. Changing one should not force the user to rebuild the rest of the system.
-
-See [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md).
-
 ## Documentation
 
-| Document | Use it for |
+| Document | What problem it answers |
 | --- | --- |
-| [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md) | runtime ownership and dependency boundaries |
-| [Providers](docs/PROVIDERS.md) | supported provider kinds and protocol behavior |
-| [Provider profiles](docs/PROVIDER-PROFILES.md) | model/provider configuration |
-| [Secrets](docs/SECRETS.md) | credential storage and references |
-| [Memory integration](docs/MEMORY.md) | connecting Mnemosyne |
-| [Persona packs](docs/PERSONA-PACKS.md) | portable assistant identities and variants |
-| [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md) | backup, restore, and health checks |
-| [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md) | daemon and local application layout |
-| [Surface API](docs/SURFACE-API.md) | supported local integration API |
-| [Other surfaces](docs/SURFACES-BEYOND-THE-BROWSER.md) | desktop, Telegram, and delegated providers |
-| [Licensing notes](docs/LICENSING.md) | plain-language licensing boundary |
+| [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md) | rules for agents and maintainers changing the system without breaking boundaries |
+| [Providers](docs/PROVIDERS.md) | which provider kinds exist and how their protocols behave |
+| [Provider profiles](docs/PROVIDER-PROFILES.md) | how to configure model access |
+| [Secrets](docs/SECRETS.md) | how credentials stay out of ordinary config |
+| [Memory integration](docs/MEMORY.md) | how Mnemosyne plugs into Delos |
+| [Persona packs](docs/PERSONA-PACKS.md) | how portable assistant identities work |
+| [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md) | how to back up, recover, and diagnose local state |
+| [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md) | how the daemon and local app fit together |
+| [Surface API](docs/SURFACE-API.md) | how to add or talk to a local surface |
+| [Licensing notes](docs/LICENSING.md) | the licensing boundary in plain language |
 
-## Licence
+## Licence and maintenance
 
-**PolyForm Noncommercial License 1.0.0** — see [LICENSE.md](LICENSE.md) for the official text and [Licensing notes](docs/LICENSING.md) for a plain-language explanation. The project is source-available for noncommercial use; commercial use requires separate permission.
+Delos uses the [PolyForm Noncommercial License 1.0.0](LICENSE.md). It is source-available for noncommercial use; commercial use requires separate permission. The official terms are in [LICENSE.md](LICENSE.md), with a plain-language explanation in [Licensing notes](docs/LICENSING.md).
 
 The licensor and maintainer is **Gwendolen** (`@Gwendolenmave` on GitHub).
 
-The project uses closed maintenance and is not accepting substantive external code contributions. Bug reports remain welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+The project uses closed maintenance and is not accepting substantive external code contributions. Bug reports remain welcome; see [Contributing](CONTRIBUTING.md).
