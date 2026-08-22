@@ -12,7 +12,7 @@
     "clean": "node -e \"require('node:fs').rmSync('build',{recursive:true,force:true})\"",
     "build": "npm run clean --silent && tsc -p tsconfig.json",
     "test": "npm run build --silent && node --test build/tests/*.test.js && npm run test:scan --silent",
-    "test:scan": "python3 scripts/scan-adversarial-test.py",
+    "test:scan": "python3 scripts/scan-adversarial-test.py && python3 scripts/scan-public-doc-policy-test.py",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "npm run build --silent && node build/surfaces/cli/main.js",
     "app:web": "npm run build --silent && node build/surfaces/web/launch.js"
