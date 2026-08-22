@@ -45,6 +45,10 @@ def expect_fail(name: str, files: dict[str, str], needle: str) -> None:
 
 
 expect_pass(
+    "English README may carry the visible Chinese-language switch",
+    {"README.md": "[" + CJK + "](README.zh-CN.md)\n"},
+)
+expect_pass(
     "Chinese README is an intentional public surface",
     {"README.zh-CN.md": CJK + " public documentation\nMaintained by " + OWNER + ".\n"},
 )
@@ -53,7 +57,7 @@ expect_pass(
     {"docs/LICENSING.md": "Licensor and maintainer: " + OWNER + ".\n"},
 )
 expect_fail(
-    "Chinese remains forbidden outside the Chinese README",
+    "Chinese remains forbidden outside the two README surfaces",
     {"docs/notes.md": CJK + "\n"},
     "Chinese text",
 )
