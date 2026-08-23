@@ -2,30 +2,27 @@
 
 [English](README.md)
 
-**一个跑在你自己机器上的个人 AI runtime：模型可以换，界面可以换，记忆可以换，但“这个助手是谁”不必跟着重来。**
+**保留这个助手，替换底下的机器。**
 
-Delos 想解决的不是“再做一个聊天机器人”，而是一个更烦人的长期问题：当你换模型、换供应商、换界面、换电脑时，为什么总要把整个个人 AI 重新搭一遍？
+Delos 是一个跑在本机的个人 AI runtime。它把最容易被绑死在一起的几样东西——**persona、模型访问、对话状态、界面和长期记忆**——拆开，让它们通过稳定边界连接。
 
-它把这些部分拆开，让它们通过稳定边界连接：
+这样做的意义很简单：你想换其中一块时，不必把整套助手重新搭一遍。换 provider，不必重写 persona；加 Telegram 或网页入口，不必再造第二个助手；换 persona，不必改 runtime 代码；长期记忆也可以等真正需要时再接。
 
-| 你遇到的问题 | Delos 用什么解决 | 这意味着什么 |
-| --- | --- | --- |
-| 换模型就像换了一个助手 | **Provider profiles** | OpenAI、Anthropic、兼容 API、本地模型或 delegated provider 可以替换，persona 不必跟着变 |
-| Persona 被写死在代码里 | **Plain-file persona + persona packs** | 身份和说话方式是可读、可编辑、可迁移的内容 |
-| CLI、网页、Telegram 各自长出一套状态 | **One runtime, multiple surfaces** | 不同入口共享同一套 turn、transcript 与配置边界 |
-| 对话结束后什么都忘了 | **本地 transcript + 可选 Mnemosyne** | 短期连续性由 Delos 保存；需要长期受治理记忆时再接 Mnemosyne |
-| API key 到处散落 | **Secret references** | 配置文件保存“去哪里取 secret”，而不是保存 secret 本身 |
-| 系统坏了不知道哪里坏 | **Backup / restore / doctor** | 状态可以备份、恢复并做一致性检查 |
+Delos 本身不运营云服务、账号系统、订阅或 telemetry backend。模型走哪里、数据放哪里，都由运行它的人决定。
 
-Delos 本身不运营云服务、账号、订阅或 telemetry backend。你选择什么模型、数据放在哪里、是否启用长期记忆，都由运行它的 host 决定。
+## 从这里开始
 
-Delos 这个名字来自希腊神话中的提洛岛：它是一个承载诞生的地方，而不是替诞生于此的人规定身份。
+| 我想…… | 先看这里 |
+| --- | --- |
+| 在本机跑起来，直接聊几句 | [快速开始](#快速开始) |
+| 换一个模型或 provider | [Providers](docs/PROVIDERS.md) + [Provider profiles](docs/PROVIDER-PROFILES.md) |
+| 改“这个助手是谁” | [`prompts/`](prompts/) + [Persona packs](docs/PERSONA-PACKS.md) |
+| 加长期受治理记忆 | [Mnemosyne](https://github.com/Gwendolenmave/mnemosyne) + [Memory integration](docs/MEMORY.md) |
+| 接一个新的界面 | [Surface API](docs/SURFACE-API.md) |
+| 修改 Delos 本身 | **先读 [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md)** |
+| 备份、恢复或排查本地状态 | [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md) |
 
-**Delos is where they are born, not who they must become.**
-
-仓库附带的示例 persona 叫 **Arti**。她只是默认示例，不是产品身份；你可以完全替换她，而不需要改 runtime 架构。 <!-- scan-allow-persona -->
-
-## 5 分钟跑起来
+## 快速开始
 
 需要 **Node.js 22.22 或更新版本**。
 
@@ -42,18 +39,13 @@ export DELOS_MODEL_API_KEY="your-key-here"
 # 发一句话，打印回复后退出
 npm run start -- --once "Hello."
 
-# 进入交互式对话
+# 或进入交互式会话
 npm run start
 ```
 
-交互式会话里：
+交互式会话会把完成的 turn 保存在本地，所以同一配置/provider scope 下重启后仍可继续。`/clear` 开一个新 conversation，`/exit` 和 `/quit` 退出；`--once` 不会混进交互式连续性。
 
-- `/exit` 或 `/quit`：退出；
-- `/clear`：归档当前 CLI conversation，开启一个新的；
-- 正常完成的 turn 会保存在本地，同一配置/provider scope 下重启后仍可继续；
-- `--once` 是隔离的一次性调用，不会混入交互式连续性。
-
-## 它内部怎么拼起来
+## 一张图理解 Delos
 
 ```text
 CLI / Web / Desktop / Telegram
@@ -70,23 +62,24 @@ Persona    Provider   Transcript
              optional Mnemosyne
 ```
 
-这里最重要的不是图本身，而是**这些块可以独立替换**。换 provider 不该迁移 persona；换 surface 不该复制 transcript；启用 Mnemosyne 不该改变 system/persona authority。
+重点不是盒子有几个，而是**盒子之间有边界**：
 
-施工或扩展时，请把 [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md) 当作规范合同，而不是 README 的补充读物。
+- **Persona 是内容。** 身份和回复风格放在可读文件里，而不是埋进 application code。
+- **Provider 可以替换。** OpenAI、Anthropic、兼容 API、本地模型服务器和 delegated provider 都走 provider contract。
+- **多个界面共享一个 runtime。** CLI、浏览器、desktop、Telegram 是同一个助手的不同入口，不是四个各自长状态的助手。
+- **长期记忆是可选项。** Delos 自己可以运行；需要长期受治理记忆时，再接 [Mnemosyne](https://github.com/Gwendolenmave/mnemosyne)。
 
-## 模型与 Provider
+## 最常见的几种改法
 
-Delos 支持官方 OpenAI / Anthropic 协议、OpenAI-compatible relay 或本地服务器，以及 delegated local provider tools。
+### 换模型，不换助手
 
-Provider profile 只描述“怎么连接模型”，不保存 credential 本身。
+Provider profile 只描述**怎么连接模型**；credential 不应该直接塞进普通配置文件。
 
-- [Providers](docs/PROVIDERS.md)：各类 provider 的协议与行为；
-- [Provider profiles](docs/PROVIDER-PROFILES.md)：配置示例；
-- [Secrets](docs/SECRETS.md)：credential 怎样保存和引用。
+想知道不同 provider 的协议行为，看 [Providers](docs/PROVIDERS.md)；想看配置例子，看 [Provider profiles](docs/PROVIDER-PROFILES.md)；credential 怎么放，看 [Secrets](docs/SECRETS.md)。
 
-## Persona：助手是谁，不该由代码决定
+### 换助手，不换 runtime
 
-默认身份文件很普通：
+默认 persona 就是普通文本文件：
 
 ```text
 prompts/
@@ -95,13 +88,13 @@ prompts/
 └── response-style.md
 ```
 
-这正是设计目标。你应该能直接读懂、修改和替换它们。
+直接读、改、替换这些文件，就能改变助手。需要可携带 manifest、variant 或按场景激活的 persona 时，再看 [Persona packs](docs/PERSONA-PACKS.md)。
 
-如果需要一整套可携带的 persona（manifest、variants、contextual activation rules），看 [Persona packs](docs/PERSONA-PACKS.md)。
+仓库也带了一个叫 **Arti** 的示例 persona。她只是默认例子，不是 Delos 的产品身份。 <!-- scan-allow-persona -->
 
-## 长期记忆：需要时再接 Mnemosyne
+### 真正需要时，再加长期记忆
 
-Delos 自己负责 runtime 与本地 conversation continuity；长期受治理记忆由独立项目 [Mnemosyne](https://github.com/Gwendolenmave/mnemosyne) 提供，并且**默认关闭**。
+Delos 负责 runtime 和本地 conversation continuity；Mnemosyne 是单独的长期记忆包，并且**默认关闭**。
 
 ```bash
 npm install github:Gwendolenmave/mnemosyne
@@ -111,48 +104,49 @@ export DELOS_MEMORY_DB_PATH=./local-state/mnemosyne.db
 npm run start
 ```
 
-如果你明确启用了 Mnemosyne，但它无法正确接入，Delos 会在启动时 fail closed，而不是假装“记忆已开启”。召回到的 memory 只是受限的 host data，不会变成 system/persona authority。
+如果你明确要求启用 Mnemosyne，但 Delos 无法正确接入，它会在启动时 fail closed，而不是假装“记忆已经开了”。召回到的 memory 仍然只是受限 host data，不会变成 system/persona authority。
 
 完整边界见 [Memory integration](docs/MEMORY.md)。
 
-## 多个入口，但只有一个 Delos
+### 加新界面，不再造一个助手
 
-CLI、浏览器 UI、desktop shell、Telegram surface 都是同一个 runtime 的入口，而不是四套独立助手。
+新的 surface 应该走共享 runtime 边界，而不是自己另建 transcript、provider registry、persona store 或 memory system。
 
-- [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md)：daemon 与本地应用怎样连接；
-- [Surface API](docs/SURFACE-API.md)：稳定的本地 integration API；
-- [Desktop, Telegram, and delegated providers](docs/SURFACES-BEYOND-THE-BROWSER.md)：其他入口和 delegated provider。
+接入合同看 [Surface API](docs/SURFACE-API.md)；daemon / browser 的关系看 [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md)；desktop、Telegram 和 delegated-provider 边界看 [Surfaces beyond the browser](docs/SURFACES-BEYOND-THE-BROWSER.md)。
 
-## 隐私与本地所有权
+## Local-first 的意思是：网络边界由你决定
 
-Delos 自己不会把数据发送到一个“Delos 云”。网络流量取决于你选择的模型路径：
+Delos 不会把数据发到一个“Delos 云”。真正会不会出网，取决于你配置的 provider 路径。
 
-- 远程 provider 会收到完成这一 turn 所需的 prompt、选中的 conversation/context；
+- 远程 provider 会收到完成当前 turn 所需的 prompt 和选中 context，并按它自己的条款处理；
 - 本地模型可以把模型流量留在本机；
-- credential 不应写进 Delos JSON 配置；
-- transcript、本地状态、persona 数据和可选 Mnemosyne 数据库都留在 host 的存储边界内。
+- credential 不应写进普通 Delos JSON 配置；
+- transcript、本地状态、persona 文件和可选 Mnemosyne 数据库都留在 host 的存储边界里。
 
-备份、恢复与健康检查见 [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md)。
+## 如果你要改代码
 
-## 文档导航
+README 是给人看的地图；[Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md) 才是给施工机和维护者的规范合同。
 
-| 文档 | 解决什么问题 |
-| --- | --- |
-| [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.md) | 给施工机/维护者看的依赖、所有权、禁止越界规则 |
-| [Providers](docs/PROVIDERS.md) | 选 provider 时看协议和能力 |
-| [Provider profiles](docs/PROVIDER-PROFILES.md) | 写 provider 配置 |
-| [Secrets](docs/SECRETS.md) | 安全处理 credential |
-| [Memory integration](docs/MEMORY.md) | 把 Mnemosyne 接进 Delos |
-| [Persona packs](docs/PERSONA-PACKS.md) | 创建或迁移 persona |
-| [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md) | 备份、恢复、排障 |
-| [Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md) | 理解 daemon 与本地 app |
-| [Surface API](docs/SURFACE-API.md) | 接新的本地 surface |
-| [Licensing notes](docs/LICENSING.md) | 通俗理解许可证边界 |
+最常用的下一步文档可以按任务找：
+
+- **模型访问：** [Providers](docs/PROVIDERS.md)、[Provider profiles](docs/PROVIDER-PROFILES.md)、[Secrets](docs/SECRETS.md)
+- **身份：** [Persona packs](docs/PERSONA-PACKS.md)
+- **记忆：** [Memory integration](docs/MEMORY.md)
+- **界面：** [Surface API](docs/SURFACE-API.md)、[Local app architecture](docs/LOCAL-APP-ARCHITECTURE.md)
+- **运维：** [Backup, restore, and doctor](docs/BACKUP-AND-DOCTOR.md)
+
+如果实现和 Architecture 对不上，不要猜哪边“应该”是真的；直接检查当前代码和测试，再把过时的一边一起修掉。
+
+## 为什么叫 Delos？
+
+在希腊神话里，Delos 是一个承载诞生的地方。这个名字很适合它的设计目标：runtime 可以承载一个身份，但不替那个身份规定“你必须是谁”。
+
+**Delos is where they are born, not who they must become.**
 
 ## 许可证与维护
 
-Delos 使用 [PolyForm Noncommercial License 1.0.0](LICENSE.md)，属于 source-available、非商业许可。正式条款以 [LICENSE.md](LICENSE.md) 为准；通俗说明见 [Licensing notes](docs/LICENSING.md)。商业使用需要另行取得许可。
+Delos 使用 [PolyForm Noncommercial License 1.0.0](LICENSE.md)，属于 source-available、非商业许可；商业使用需要另行取得许可。
 
 许可人与维护者为 **Gwendolen**（GitHub：`@Gwendolenmave`）。
 
-项目采用封闭维护模式，目前不接受实质性的外部代码贡献；Bug report 仍然欢迎，见 [Contributing](CONTRIBUTING.md)。
+项目采用封闭维护模式，目前不接受实质性的外部代码贡献；Bug report 和负责任的安全报告仍然欢迎，见 [Contributing](CONTRIBUTING.md) 与 [Security](SECURITY.md)。
