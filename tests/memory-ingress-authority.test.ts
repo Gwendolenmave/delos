@@ -55,10 +55,8 @@ test("retention-era generic receipts stay durably parked across reopen and legac
   const path = join(dir, "receipts.db");
   try {
     const first = new MemoryTurnReceiptStore(path);
-    first.record({
-      ...RECEIPT,
-      ingressGeneration: MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION,
-    });
+    first.setDefaultIngressGeneration(MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION);
+    first.record(RECEIPT);
     assert.equal(
       first.get(RECEIPT.turnId)?.ingressGeneration,
       MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION,
@@ -92,11 +90,8 @@ test("legacy receipts remain pending and an existing turn cannot be relabelled b
     assert.equal(store.pending().length, 1);
     assert.equal(store.get(RECEIPT.turnId)?.ingressGeneration, MEMORY_INGRESS_LEGACY_GENERATION);
 
-    store.record({
-      ...RECEIPT,
-      ingressGeneration: MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION,
-      sourceTime: "2026-08-26T12:01:00.000Z",
-    });
+    store.setDefaultIngressGeneration(MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION);
+    store.record({ ...RECEIPT, sourceTime: "2026-08-26T12:01:00.000Z" });
     assert.equal(store.get(RECEIPT.turnId)?.ingressGeneration, MEMORY_INGRESS_LEGACY_GENERATION);
     assert.equal(store.pending().length, 1);
   } finally {

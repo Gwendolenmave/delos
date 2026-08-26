@@ -65,6 +65,7 @@ function parseGeneration(value: unknown): MemoryIngressGeneration {
  */
 export class MemoryTurnReceiptStore {
   private readonly db: DatabaseSync;
+  private defaultIngressGeneration: MemoryIngressGeneration = MEMORY_INGRESS_LEGACY_GENERATION;
 
   constructor(path: string) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
@@ -101,9 +102,17 @@ export class MemoryTurnReceiptStore {
     `);
   }
 
+  /**
+   * Set the generation used by later records. Existing rows are never rewritten.
+   * Runtime composition calls this before accepting turns.
+   */
+  setDefaultIngressGeneration(generation: MemoryIngressGeneration): void {
+    this.defaultIngressGeneration = generation;
+  }
+
   record(input: MemoryTurnReceiptInput): void {
     const scene = sceneColumns(input.scene);
-    const generation = input.ingressGeneration ?? MEMORY_INGRESS_LEGACY_GENERATION;
+    const generation = input.ingressGeneration ?? this.defaultIngressGeneration;
     this.db.prepare(`
       INSERT INTO memory_turn_receipts (
         turn_id, conversation_id, variant_sha256, scene_mode, scene_au_id,
