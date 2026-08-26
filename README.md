@@ -15,6 +15,7 @@ Delos itself runs on your machine. It operates no hosted service, account system
 | I want to… | Start with |
 | --- | --- |
 | run Delos locally and chat | [Quick start](#quick-start) |
+| see what the current public source actually implements | [Public status](docs/STATUS.md) |
 | use a different model or provider | [Providers](docs/PROVIDERS.md) + [provider profiles](docs/PROVIDER-PROFILES.md) |
 | change who the assistant is | [`prompts/`](prompts/) + [persona packs](docs/PERSONA-PACKS.md) |
 | add governed long-term memory | [Mnemosyne](https://github.com/Gwendolenmave/mnemosyne) + [memory integration](docs/MEMORY.md) |
@@ -106,7 +107,9 @@ npm run start
 
 If you explicitly require Mnemosyne and Delos cannot attach it correctly, startup fails closed instead of pretending memory is active. Retrieved memory remains bounded host data; it does not become system/persona authority.
 
-See [Memory integration](docs/MEMORY.md) for the full boundary.
+For hosts that enable portable retention authority, Delos also closes the generic-D0 dual-ingress path: generic completed-turn receipts are parked as evidence-only, and ordinary long-term candidates may advance only through Mnemosyne's package-root retention classification. Session-only, episodic, quarantined, and correction outcomes are not promoted to ordinary long-term memory through the legacy generic worker.
+
+See [Memory integration](docs/MEMORY.md) for the full boundary and [Public status](docs/STATUS.md) for the exact public-source state.
 
 ### Add another interface without creating another assistant
 
@@ -129,6 +132,7 @@ README is the human map. [Architecture principles](docs/ARCHITECTURE-PRINCIPLES.
 
 The most useful next documents are:
 
+- **current public state:** [Public status](docs/STATUS.md), [Changelog](CHANGELOG.md)
 - **model access:** [Providers](docs/PROVIDERS.md), [Provider profiles](docs/PROVIDER-PROFILES.md), [Secrets](docs/SECRETS.md)
 - **identity:** [Persona packs](docs/PERSONA-PACKS.md)
 - **memory:** [Memory integration](docs/MEMORY.md)
