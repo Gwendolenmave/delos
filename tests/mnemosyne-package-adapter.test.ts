@@ -217,6 +217,7 @@ test("memory turn receipts round-trip pointer metadata and recover pending ingre
       selectedIds: ["memory-a", "memory-b"],
       priorVersions: { relationship: 4, style: 2 },
       sourceTime: "2026-08-22T00:00:00.000Z",
+      ingressGeneration: "legacy-d0-v1",
       enqueuedAt: null,
     });
 
