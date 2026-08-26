@@ -15,6 +15,7 @@ Delos 本身不运营云服务、账号系统、订阅或 telemetry backend。�
 | 我想…… | 先看这里 |
 | --- | --- |
 | 在本机跑起来，直接聊几句 | [快速开始](#快速开始) |
+| 看当前 public source 到底实现了什么 | [Public status](docs/STATUS.md) |
 | 换一个模型或 provider | [Providers](docs/PROVIDERS.md) + [Provider profiles](docs/PROVIDER-PROFILES.md) |
 | 改“这个助手是谁” | [`prompts/`](prompts/) + [Persona packs](docs/PERSONA-PACKS.md) |
 | 加长期受治理记忆 | [Mnemosyne](https://github.com/Gwendolenmave/mnemosyne) + [Memory integration](docs/MEMORY.md) |
@@ -106,7 +107,9 @@ npm run start
 
 如果你明确要求启用 Mnemosyne，但 Delos 无法正确接入，它会在启动时 fail closed，而不是假装“记忆已经开了”。召回到的 memory 仍然只是受限 host data，不会变成 system/persona authority。
 
-完整边界见 [Memory integration](docs/MEMORY.md)。
+如果 host 启用 portable retention authority，Delos 还会关闭 generic D0 的双入口：generic completed-turn receipt 只作为 evidence-only 停放，普通 long-term candidate 只有通过 Mnemosyne package-root 的 retention classification 才能继续前进。session-only、episodic、quarantine 和 correction 结果不会被旧 generic worker 误升成普通长期记忆。
+
+完整边界见 [Memory integration](docs/MEMORY.md)；当前 public source 的精确状态见 [Public status](docs/STATUS.md)。
 
 ### 加新界面，不再造一个助手
 
@@ -129,6 +132,7 @@ README 是给人看的地图；[Architecture principles](docs/ARCHITECTURE-PRINC
 
 最常用的下一步文档可以按任务找：
 
+- **当前 public 状态：** [Public status](docs/STATUS.md)、[Changelog](CHANGELOG.md)
 - **模型访问：** [Providers](docs/PROVIDERS.md)、[Provider profiles](docs/PROVIDER-PROFILES.md)、[Secrets](docs/SECRETS.md)
 - **身份：** [Persona packs](docs/PERSONA-PACKS.md)
 - **记忆：** [Memory integration](docs/MEMORY.md)
