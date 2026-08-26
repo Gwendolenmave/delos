@@ -3,6 +3,11 @@ import { DatabaseSync } from "node:sqlite";
 
 import type { ModelProvider } from "../../core/ports/model-provider.js";
 import type { TranscriptStore } from "../../core/ports/transcript-store.js";
+import {
+  genericMemoryReceiptMayActivate,
+  resolveGenericMemoryIngressAuthority,
+  type MemoryIngressAuthorityMode,
+} from "./memory-ingress-authority.js";
 import { MemoryTurnReceiptStore, type MemoryTurnReceipt } from "./memory-turn-receipts.js";
 import {
   defaultMnemosynePackageLoader,
@@ -32,6 +37,12 @@ export interface CreateMnemosyneDecisionRuntimeOptions {
   readonly transcriptStore: TranscriptStore;
   readonly mode: MemoryDecisionMode;
   readonly policyId: string;
+  /**
+   * Legacy keeps the historical generic D0 path. Portable-retention parks
+   * generic receipts; a separately retention-classified lane is wired in the
+   * next host-integration slice.
+   */
+  readonly ingressAuthority?: MemoryIngressAuthorityMode;
   /** Required in full mode; enqueue-only deliberately constructs no model. */
   readonly decisionProvider?: ModelProvider;
   /** Required in full mode; this is the dedicated memory-governance persona. */
@@ -248,6 +259,7 @@ export async function createMnemosyneDecisionRuntime(
   const now = options.now ?? (() => new Date());
   const audit = options.audit ?? (() => undefined);
   const loader = options.loadPackage ?? defaultMnemosynePackageLoader;
+  const ingressAuthority = resolveGenericMemoryIngressAuthority(options.ingressAuthority);
 
   if (options.policyId.trim().length === 0) {
     throw new Error("Memory decisions require a non-empty policy id.");
@@ -395,16 +407,33 @@ export async function createMnemosyneDecisionRuntime(
     return true;
   }
 
+  function parkGenericReceipt(receipt: MemoryTurnReceipt): boolean {
+    audit({
+      type: "public_memory_decision_ingress",
+      outcome: "parked_evidence",
+      turn_id: receipt.turnId,
+      ingress_generation: receipt.ingressGeneration,
+      scene: receipt.scene.mode,
+      selected_count: receipt.selectedIds.length,
+    });
+    return true;
+  }
+
   return {
     async enqueueDeliveredTurn(turnId: string): Promise<boolean> {
       if (closed) return false;
       const receipt = options.receipts.get(turnId);
-      return receipt === null ? false : enqueueReceipt(receipt);
+      if (receipt === null) return false;
+      if (!genericMemoryReceiptMayActivate(receipt.ingressGeneration, ingressAuthority)) {
+        return parkGenericReceipt(receipt);
+      }
+      return enqueueReceipt(receipt);
     },
     async recoverPendingReceipts(): Promise<number> {
-      if (closed) return 0;
+      if (closed || !ingressAuthority.autonomousActivationAllowed) return 0;
       let recovered = 0;
       for (const receipt of options.receipts.pending()) {
+        if (!genericMemoryReceiptMayActivate(receipt.ingressGeneration, ingressAuthority)) continue;
         if (await enqueueReceipt(receipt)) recovered += 1;
       }
       return recovered;
@@ -413,7 +442,10 @@ export async function createMnemosyneDecisionRuntime(
       return {
         mode: options.mode,
         policyId: options.policyId,
-        pendingReceipts: options.receipts.pending().length,
+        ingressAuthority: ingressAuthority.mode,
+        pendingReceipts: ingressAuthority.autonomousActivationAllowed
+          ? options.receipts.pending().length
+          : 0,
         ...(worker === null ? {} : { worker: worker.status() }),
         ...(backlog.counters === undefined ? {} : { backlog: backlog.counters() }),
       };

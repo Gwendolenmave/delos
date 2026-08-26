@@ -3,6 +3,11 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import type { MemorySceneIntent } from "../../core/ports/memory-context.js";
+import {
+  MEMORY_INGRESS_LEGACY_GENERATION,
+  MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION,
+  type MemoryIngressGeneration,
+} from "./memory-ingress-authority.js";
 
 export interface MemoryTurnReceipt {
   readonly turnId: string;
@@ -12,8 +17,17 @@ export interface MemoryTurnReceipt {
   readonly selectedIds: readonly string[];
   readonly priorVersions: Readonly<Record<string, number>>;
   readonly sourceTime: string;
+  /** Frozen when the receipt is first recorded; later config changes never rewrite it. */
+  readonly ingressGeneration: MemoryIngressGeneration;
   readonly enqueuedAt: string | null;
 }
+
+export type MemoryTurnReceiptInput = Omit<
+  MemoryTurnReceipt,
+  "ingressGeneration" | "enqueuedAt"
+> & {
+  readonly ingressGeneration?: MemoryIngressGeneration;
+};
 
 function sceneColumns(scene: MemorySceneIntent): { mode: string; auId: string | null; intimacy: number } {
   return {
@@ -32,10 +46,22 @@ function parseScene(mode: string, auId: string | null, intimacy: number): Memory
   return { mode: "ordinary", intimacyActive };
 }
 
+function parseGeneration(value: unknown): MemoryIngressGeneration {
+  if (value === MEMORY_INGRESS_LEGACY_GENERATION) return value;
+  if (value === MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION) return value;
+  // A malformed/newer generation is never silently promoted into executable
+  // legacy work. Treat it as parked evidence until an explicit migration exists.
+  return MEMORY_INGRESS_RETENTION_EVIDENCE_GENERATION;
+}
+
 /**
  * Metadata-only crash bridge between provider-request assembly and the
  * asynchronous memory-decision lane. Raw dialogue and memory bodies never enter
  * this database; they remain authoritative in the transcript/Mnemosyne stores.
+ *
+ * `ingress_generation` is durable admission evidence, not a mutable view. Rows
+ * recorded while portable retention is authoritative remain parked even if a
+ * later process switches back to legacy mode.
  */
 export class MemoryTurnReceiptStore {
   private readonly db: DatabaseSync;
@@ -55,20 +81,35 @@ export class MemoryTurnReceiptStore {
         selected_ids TEXT NOT NULL,
         prior_versions TEXT NOT NULL,
         source_time TEXT NOT NULL,
+        ingress_generation TEXT NOT NULL DEFAULT '${MEMORY_INGRESS_LEGACY_GENERATION}',
         enqueued_at TEXT
       );
+    `);
+    const columns = this.db.prepare("PRAGMA table_info(memory_turn_receipts)").all() as Array<{
+      name: string;
+    }>;
+    if (!columns.some((column) => column.name === "ingress_generation")) {
+      this.db.exec(
+        `ALTER TABLE memory_turn_receipts ADD COLUMN ingress_generation TEXT NOT NULL DEFAULT '${MEMORY_INGRESS_LEGACY_GENERATION}'`,
+      );
+    }
+    this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_memory_turn_receipts_pending
         ON memory_turn_receipts(enqueued_at, source_time);
+      CREATE INDEX IF NOT EXISTS idx_memory_turn_receipts_generation_pending
+        ON memory_turn_receipts(ingress_generation, enqueued_at, source_time);
     `);
   }
 
-  record(input: Omit<MemoryTurnReceipt, "enqueuedAt">): void {
+  record(input: MemoryTurnReceiptInput): void {
     const scene = sceneColumns(input.scene);
+    const generation = input.ingressGeneration ?? MEMORY_INGRESS_LEGACY_GENERATION;
     this.db.prepare(`
       INSERT INTO memory_turn_receipts (
         turn_id, conversation_id, variant_sha256, scene_mode, scene_au_id,
-        intimacy_active, selected_ids, prior_versions, source_time, enqueued_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+        intimacy_active, selected_ids, prior_versions, source_time,
+        ingress_generation, enqueued_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
       ON CONFLICT(turn_id) DO UPDATE SET
         conversation_id=excluded.conversation_id,
         variant_sha256=excluded.variant_sha256,
@@ -88,6 +129,7 @@ export class MemoryTurnReceiptStore {
       JSON.stringify(input.selectedIds),
       JSON.stringify(input.priorVersions),
       input.sourceTime,
+      generation,
     );
   }
 
@@ -98,10 +140,14 @@ export class MemoryTurnReceiptStore {
     return row === undefined ? null : this.row(row);
   }
 
+  /**
+   * Generic D0 recovery sees legacy receipts only. Retention-era evidence stays
+   * durable but cannot be bulk-drained by this compatibility path.
+   */
   pending(): MemoryTurnReceipt[] {
     const rows = this.db.prepare(
-      "SELECT * FROM memory_turn_receipts WHERE enqueued_at IS NULL ORDER BY source_time, turn_id",
-    ).all() as Record<string, unknown>[];
+      "SELECT * FROM memory_turn_receipts WHERE enqueued_at IS NULL AND ingress_generation=? ORDER BY source_time, turn_id",
+    ).all(MEMORY_INGRESS_LEGACY_GENERATION) as Record<string, unknown>[];
     return rows.map((row) => this.row(row));
   }
 
@@ -140,6 +186,7 @@ export class MemoryTurnReceiptStore {
             )
           : {},
       sourceTime: String(row["source_time"]),
+      ingressGeneration: parseGeneration(row["ingress_generation"]),
       enqueuedAt: row["enqueued_at"] === null ? null : String(row["enqueued_at"]),
     };
   }
